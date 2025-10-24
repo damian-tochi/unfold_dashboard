@@ -1,30 +1,95 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:unfold_dashboard/data/data_service.dart';
+import 'package:unfold_dashboard/providers/chart_provider.dart';
+import 'package:unfold_dashboard/state/chart_state.dart';
 
-import 'package:unfold_dashboard/main.dart';
+
+/// A minimal chart widget bound to the provider, showing visible range and hovered tooltip
+class ChartView extends ConsumerWidget {
+  final Metric metric;
+  const ChartView(this.metric, {super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(chartNotifierProvider);
+    final notifier = ref.read(chartNotifierProvider.notifier);
+
+    return Column(
+      key: Key('chart_${metric.name}'),
+      children: [
+        Text('Range: ${state.range.name}', key: Key('range_${metric.name}')),
+        Text('MinX: ${state.visibleMinX}', key: Key('minx_${metric.name}')),
+        Text('MaxX: ${state.visibleMaxX}', key: Key('maxx_${metric.name}')),
+        if (state.hoveredX != null)
+          Text('Tooltip: ${state.hoveredX}', key: Key('tooltip_${metric.name}')),
+        ElevatedButton(
+          key: Key('range_switch_${metric.name}'),
+          onPressed: () async => await notifier.load(RangeOption.days7),
+          child: const Text('Switch to 7d'),
+        ),
+      ],
+    );
+  }
+}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Chart range switch updates all visible X domains and tooltips remain synced', (tester) async {
+    final container = ProviderContainer(overrides: [
+      chartNotifierProvider.overrideWith((ref) => ChartNotifier(DataService())),
+    ]);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                ChartView(Metric.HRV),
+                ChartView(Metric.RHR),
+                ChartView(Metric.Steps),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    final notifier = container.read(chartNotifierProvider.notifier);
+
+    // Initial load (e.g. 90 days)
+    await notifier.load(RangeOption.days90);
+    await tester.pumpAndSettle();
+
+    final initialMinX = container.read(chartNotifierProvider).visibleMinX;
+    final initialMaxX = container.read(chartNotifierProvider).visibleMaxX;
+
+    // Simulate hover / tooltip sync
+    notifier.setHoveredX(12345);
     await tester.pump();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byKey(const Key('tooltip_HRV')), findsOneWidget);
+    expect(find.byKey(const Key('tooltip_RHR')), findsOneWidget);
+    expect(find.byKey(const Key('tooltip_Steps')), findsOneWidget);
+
+    // Tap button to switch to 7 days
+    await tester.tap(find.byKey(const Key('range_switch_HRV')));
+    await tester.pumpAndSettle();
+
+    final newMinX = container.read(chartNotifierProvider).visibleMinX;
+    final newMaxX = container.read(chartNotifierProvider).visibleMaxX;
+
+    expect(newMaxX, greaterThan(newMinX));
+    expect(newMinX, greaterThan(initialMinX));
+
+    notifier.setHoveredX(99999);
+    await tester.pump();
+
+    expect(find.byKey(const Key('tooltip_HRV')), findsOneWidget);
+    expect(find.byKey(const Key('tooltip_RHR')), findsOneWidget);
+    expect(find.byKey(const Key('tooltip_Steps')), findsOneWidget);
   });
 }
+

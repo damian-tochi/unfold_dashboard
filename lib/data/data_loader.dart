@@ -6,10 +6,10 @@ class DataLoader {
   static final _random = Random();
 
   static Future<List<Map<String, dynamic>>> loadJsonList(String path) async {
-    // Simulate 700–1200 ms latency
-    await Future.delayed(Duration(milliseconds: 700 + _random.nextInt(500)));
+    /// Simulate 700–1200 ms latency
+    //await Future.delayed(Duration(milliseconds: 700 + _random.nextInt(500)));
 
-    // Random 10% failure
+    /// Random 10% failure
     if (_random.nextDouble() < 0.1) {
       throw Exception('Network error: failed to fetch $path');
     }
@@ -19,12 +19,12 @@ class DataLoader {
       final decoded = json.decode(raw);
       if (decoded is List) {
         return decoded
-            .whereType<Map<String, dynamic>>() // Skip invalid entries
+            .whereType<Map<String, dynamic>>()
             .toList();
       }
       return [];
     } catch (e) {
-      // Gracefully handle corrupt/missing JSON
+      /// Gracefully handle corrupt/missing JSON
       print('⚠️ Error loading $path: $e');
       return [];
     }

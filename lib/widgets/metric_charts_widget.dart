@@ -20,12 +20,21 @@ class MetricChart extends ConsumerWidget {
     final hoveredX = state.hoveredX;
 
     if (data.isEmpty) {
-      return const Center(child: Text("No data"));
+      return const _EmptyChartView();
     }
 
+    /// Filter out invalid or non-finite values
     final spots = data
-        .map((e) => FlSpot(e.time.millisecondsSinceEpoch.toDouble(), e.value))
+        .map((e) => FlSpot(
+      e.time.millisecondsSinceEpoch.toDouble(),
+      e.value,
+    ))
+        .where((s) => s.x.isFinite && s.y.isFinite)
         .toList();
+
+    if (spots.isEmpty) {
+      return const _EmptyChartView();
+    }
 
     final color = switch (metric) {
       Metric.HRV => Colors.tealAccent,
@@ -33,73 +42,75 @@ class MetricChart extends ConsumerWidget {
       Metric.Steps => Colors.blueAccent,
     };
 
-    String chartTitle = switch (metric) {
+    final chartTitle = switch (metric) {
       Metric.HRV => "Heart Rate Variability (ms)",
       Metric.RHR => "Resting Heart Rate (bpm)",
       Metric.Steps => "Daily Steps",
     };
 
-    // --- Function to compute bands, this is to avoid recomputation ---
-    List<HorizontalLine> _computeBands(List<FlSpot> spots, Color color) {
+    List<HorizontalLine> computeBands(List<FlSpot> spots, Color color) {
       if (spots.length < 7) return [];
-      final means = <double>[];
-      for (int i = 0; i < spots.length; i++) {
-        final start = (i - 6).clamp(0, spots.length - 1);
-        final window = spots.sublist(start, i + 1).map((s) => s.y).toList();
-        final mean = window.reduce((a, b) => a + b) / window.length;
-        final std = sqrt(
-          window.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
-              window.length,
-        );
-        means.add(mean);
-        if (i == spots.length - 1) {
-          return [
-            HorizontalLine(y: mean + std, color: color.withOpacity(0.25)),
-            HorizontalLine(y: mean - std, color: color.withOpacity(0.25)),
-          ];
-        }
-      }
-      return [];
+      final window = spots.sublist(spots.length - 7);
+      final values = window.map((s) => s.y).toList();
+      final mean = values.reduce((a, b) => a + b) / values.length;
+      final std = sqrt(values.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) / values.length);
+      return [
+        HorizontalLine(y: mean + std, color: color.withOpacity(0.25)),
+        HorizontalLine(y: mean - std, color: color.withOpacity(0.25)),
+      ];
     }
-    final List<HorizontalLine> bands = showBands ? _computeBands(spots, color) : [];
 
-    // --- Journal markers ---
-    final verticals = journal.map((j) {
+    final List<HorizontalLine> bands = showBands ? computeBands(spots, color) : [];
+
+    final verticals = journal
+        .where((j) => j.time != null)
+        .map((j) {
       final ts = j.time.millisecondsSinceEpoch.toDouble();
       return VerticalLine(
         x: ts,
         color: Colors.orangeAccent,
         strokeWidth: 1,
         dashArray: [4, 4],
-        label: VerticalLineLabel(show: false, alignment: Alignment.topRight),
       );
-    }).toList();
+    })
+        .toList();
 
-    // --- Shared Crosshair ---
-    verticals.add(
-      VerticalLine(
-        x: hoveredX!,
-        color: Colors.blue.withOpacity(0.7),
-        strokeWidth: 1.2,
-      ),
-    );
+    /// Add shared crosshair only if hoveredX is valid
+    if (hoveredX != null && hoveredX.isFinite) {
+      verticals.add(
+        VerticalLine(
+          x: hoveredX,
+          color: Colors.blue.withOpacity(0.7),
+          strokeWidth: 1.2,
+        ),
+      );
+    }
 
     return Card(
       elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(1)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.all(5),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(chartTitle, style: TextStyle(fontSize: 12, fontStyle: FontStyle.normal, fontWeight: FontWeight.w600)),
-            SizedBox(height: 5),
+            Text(
+              chartTitle,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 6),
             Expanded(
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTapUp: (d) {
+                  final box = context.findRenderObject() as RenderBox?;
+                  if (box == null) return;
+                  final width = box.size.width;
+                  if (width <= 0) return;
                   final x = d.localPosition.dx;
-                  final width = MediaQuery.of(context).size.width;
                   final minX = spots.first.x;
                   final maxX = spots.last.x;
                   final ratio = (x / width).clamp(0, 1);
@@ -113,46 +124,35 @@ class MetricChart extends ConsumerWidget {
                   maxScale: 3.0,
                   boundaryMargin: const EdgeInsets.all(10),
                   clipBehavior: Clip.hardEdge,
-                  onInteractionEnd: (_) {},
                   child: LineChart(
                     LineChartData(
                       minX: state.visibleMinX,
                       maxX: state.visibleMaxX,
-                      gridData: FlGridData(show: true, drawVerticalLine: false),
+                      gridData: const FlGridData(show: true, drawVerticalLine: false),
                       titlesData: FlTitlesData(
                         show: true,
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 5,
-                            interval:
-                                (state.visibleMaxX - state.visibleMinX) / 4,
+                            reservedSize: 22,
+                            interval: (state.visibleMaxX - state.visibleMinX) / 4,
                             getTitlesWidget: (v, meta) {
-                              final dt = DateTime.fromMillisecondsSinceEpoch(
-                                v.toInt(),
-                              );
-                              final text = Text(
-                                '${dt.month}/${dt.day}',
-                                style: TextStyle(fontSize: 8),
-                              );
+                              final dt = DateTime.fromMillisecondsSinceEpoch(v.toInt());
                               return SideTitleWidget(
-                                space: 6,
                                 meta: meta,
-                                child: text,
+                                space: 6,
+                                child: Text(
+                                  '${dt.month}/${dt.day}',
+                                  style: const TextStyle(fontSize: 8),
+                                ),
                               );
                             },
                           ),
                         ),
-                        leftTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 40,
-                            interval: null,
-                          ),
+                        leftTitles: const AxisTitles(
+                          sideTitles: SideTitles(showTitles: true, reservedSize: 40),
                         ),
-                        topTitles: AxisTitles(
-                          sideTitles: SideTitles(showTitles: false),
-                        ),
+                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                       ),
                       borderData: FlBorderData(show: false),
                       extraLinesData: ExtraLinesData(
@@ -172,21 +172,18 @@ class MetricChart extends ConsumerWidget {
                         enabled: true,
                         handleBuiltInTouches: true,
                         touchCallback: (event, response) {
-                          if (event.isInterestedForInteractions &&
-                              response?.lineBarSpots?.isNotEmpty == true) {
-                            final spot = response!.lineBarSpots!.first;
-                            notifier.setHoveredX(spot.x);
+                          if (event.isInterestedForInteractions && response?.lineBarSpots?.isNotEmpty == true) {
+                            notifier.setHoveredX(response!.lineBarSpots!.first.x);
                           }
                         },
                         touchTooltipData: LineTouchTooltipData(
-                          // tooltipBgColor: Colors.black87,
                           getTooltipItems: (items) => items
                               .map(
                                 (i) => LineTooltipItem(
-                                  '${DateTime.fromMillisecondsSinceEpoch(i.x.toInt()).toString().split(" ")[0]}\n${i.y.toStringAsFixed(1)}',
-                                  const TextStyle(color: Colors.white),
-                                ),
-                              )
+                              '${DateTime.fromMillisecondsSinceEpoch(i.x.toInt()).toString().split(" ")[0]}\n${i.y.toStringAsFixed(1)}',
+                              const TextStyle(color: Colors.white),
+                            ),
+                          )
                               .toList(),
                         ),
                       ),
@@ -196,6 +193,24 @@ class MetricChart extends ConsumerWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Nice empty chart view
+class _EmptyChartView extends StatelessWidget {
+  const _EmptyChartView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Text(
+          "No data available for this range.",
+          style: TextStyle(color: Colors.grey, fontSize: 12),
         ),
       ),
     );

@@ -4,6 +4,8 @@ class Assets {
 
   static const String dataBiometrics90d = 'assets/data/biometrics_90d.json';
   static const String dataJournals = 'assets/data/journals.json';
+  static const String lottie404Error = 'assets/lottie/404_error.json';
   static const String lottieCircularLoadingAnim = 'assets/lottie/circular_loading_anim.json';
+  static const String lottieEmptyStateGhost = 'assets/lottie/Empty_state_ghost.json';
 
 }

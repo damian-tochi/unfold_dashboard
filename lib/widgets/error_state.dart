@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 
 class ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
@@ -9,7 +10,7 @@ class ErrorState extends StatelessWidget {
     return Scaffold(
       body: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.error_outline, size: 48, color: Theme.of(context).colorScheme.error),
+          Lottie.asset('assets/lottie/404_error.json', height: 150, width: 200),
           const SizedBox(height: 12),
           Text(message ?? 'Failed to load data', style: const TextStyle(fontSize: 16)),
           const SizedBox(height: 12),

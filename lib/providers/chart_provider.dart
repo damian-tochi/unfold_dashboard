@@ -31,10 +31,10 @@ class ChartNotifier extends StateNotifier<ChartState> {
     state = state.copyWith(loading: true, error: null, range: range);
 
     try {
-      // Load both biometrics & journals
+      ///Load both biometrics & journals
       List<BiometricsTimeSeries> biometrics;
       if (state.largeDataset) {
-        // Simulate large data
+        ///Simulate large data
         final now = DateTime.now();
         biometrics = List.generate(10000, (i) {
           final t = now.subtract(Duration(minutes: 5 * (10000 - i)));
@@ -62,14 +62,14 @@ class ChartNotifier extends StateNotifier<ChartState> {
           .map((b) => DataPoint(time: b.time, value: b.steps))
           .toList();
 
-      // Build map by metric type
+      ///Build map by metric type
       final map = <Metric, List<DataPoint>>{
         Metric.HRV: hrvPoints,
         Metric.RHR: rhrPoints,
         Metric.Steps: stepsPoints,
       };
 
-      // Compute visible X range for charts
+      ///Compute visible X range for charts
       final now = DateTime.now();
       final start = now.subtract(Duration(
         days: switch (range) {
@@ -81,7 +81,7 @@ class ChartNotifier extends StateNotifier<ChartState> {
 
       ));
 
-      // Optional: Apply downsampling for performance on larger ranges
+      ///Apply downsampling for performance on larger ranges
       if (!force) {
         if (range == RangeOption.days30) {
           map.updateAll((key, list) => _downsample(list, 1000));
@@ -129,5 +129,10 @@ class ChartNotifier extends StateNotifier<ChartState> {
   void setHoveredX(double? x) {
     state = state.copyWith(hoveredX: x);
   }
+
+
+  @visibleForTesting
+  List<DataPoint> debugDownsample(List<DataPoint> data, int target) => _downsample(data, target);
+
 
 }
