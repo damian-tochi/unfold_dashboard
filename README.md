@@ -7,6 +7,8 @@ This README covers setup, development, testing, and project layout.
 
 - https://unfold-dashboard.vercel.app/ -
 
+## Video Demo
+- https://www.loom.com/share/12904c98f92a481c9f8b140d3c54ed60 -
 
 ## Features
 
