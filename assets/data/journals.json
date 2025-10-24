@@ -1,0 +1,18 @@
+[
+  [
+    { "date": "2025-07-26", "mood": 4, "note": "Relaxing weekend" },
+    { "date": "2025-08-25", "mood": 3, "note": "Busy workday" },
+    { "date": "2025-09-05", "mood": 5, "note": "Excellent workout" },
+    { "date": "2025-09-15", "mood": 4, "note": "Good focus at work" },
+    { "date": "2025-09-24", "mood": 1, "note": "Feeling stressed" },
+    { "date": "2025-10-03", "mood": 5, "note": "Completed long hike" },
+    { "date": "2025-10-12", "mood": 3, "note": "Average mood" },
+    { "date": "2025-10-20", "mood": 4, "note": "Well-rested and calm" },
+    { "date": "2025-08-02", "mood": 2, "note": "Bad sleep" },
+    { "date": "2025-08-12", "mood": 5, "note": "Great run" },
+    { "date": "2025-08-20", "mood": 4, "note": "Productive day" },
+    { "date": "2025-08-25", "mood": 3, "note": "Felt stressed" },
+    { "date": "2025-09-02", "mood": 5, "note": "Good energy" }
+  ]
+
+]
