@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:meta_seo/meta_seo.dart';
+import 'package:unfold_dashboard/screens/dashboard.dart';
 
-import 'features/dashboard.dart';
 
 
 Future<void> initializeApp() async {
